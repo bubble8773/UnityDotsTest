@@ -43,6 +43,7 @@ class TriggerVolumePortalAuthoringBaker : Baker<TriggerVolumePortalAuthoring>
 [UpdateInGroup(typeof(FixedStepSimulationSystemGroup))]
 [UpdateAfter(typeof(PhysicsSystemGroup))]
 [BurstCompile]
+
 public partial struct TriggerVolumePortalSystem : ISystem
 {
     private EntityQuery m_HierarchyChildQuery;
