@@ -33,6 +33,7 @@ public struct CharacterControllerComponentData : IComponentData
     public byte AffectsPhysicsBodies;
     public byte RaiseCollisionEvents;
     public byte RaiseTriggerEvents;
+    public bool IsPlayerControlled;
 }
 
 public struct CharacterControllerInput : IComponentData
@@ -98,7 +99,8 @@ public class CharacterControllerAuthoring : MonoBehaviour
 
     // Whether to raise trigger events
     public bool RaiseTriggerEvents = false;
-
+    // AI or Player?
+    public bool IsPlayerControlled;
     void OnEnable() {}
 }
 
@@ -122,7 +124,8 @@ class CharacterControllerBaker : Baker<CharacterControllerAuthoring>
                 ContactTolerance = authoring.ContactTolerance,
                 AffectsPhysicsBodies = (byte)(authoring.AffectsPhysicsBodies ? 1 : 0),
                 RaiseCollisionEvents = (byte)(authoring.RaiseCollisionEvents ? 1 : 0),
-                RaiseTriggerEvents = (byte)(authoring.RaiseTriggerEvents ? 1 : 0)
+                RaiseTriggerEvents = (byte)(authoring.RaiseTriggerEvents ? 1 : 0) ,
+                IsPlayerControlled = authoring.IsPlayerControlled
             };
             var internalData = new CharacterControllerInternalData
             {
@@ -468,7 +471,7 @@ public partial struct CharacterControllerSystem : ISystem
             ref CharacterControllerInternalData ccInternalData, ref float3 linearVelocity)
         {
             // Reset jumping state and unsupported velocity
-            if (ccInternalData.SupportedState == CharacterSupportState.Supported)
+            if (ccInternalData.SupportedState == CharacterSupportState.Supported && ccComponentData.IsPlayerControlled)
             {
                 ccInternalData.IsJumping = false;
                 ccInternalData.UnsupportedVelocity = float3.zero;
@@ -486,7 +489,7 @@ public partial struct CharacterControllerSystem : ISystem
                 bool jumpRequested = ccInternalData.Input.Jumped != 0;
                 ccInternalData.Input.Jumped = 0; // "consume" the event
                 bool haveInput = (math.abs(horizontal) > float.Epsilon) || (math.abs(vertical) > float.Epsilon);
-                if (haveInput)
+                if (haveInput && ccComponentData.IsPlayerControlled)
                 {
                     float3 localSpaceMovement = forward * vertical + right * horizontal;
                     float3 worldSpaceMovement = math.rotate(quaternion.AxisAngle(up, ccInternalData.CurrentRotationAngle), localSpaceMovement);
@@ -499,7 +502,7 @@ public partial struct CharacterControllerSystem : ISystem
             {
                 float horizontal = ccInternalData.Input.Looking.x;
                 bool haveInput = (math.abs(horizontal) > float.Epsilon);
-                if (haveInput)
+                if (haveInput && ccComponentData.IsPlayerControlled)
                 {
                     var userRotationSpeed = horizontal * ccComponentData.RotationSpeed;
                     ccInternalData.Velocity.Angular = -userRotationSpeed * up;
@@ -513,7 +516,7 @@ public partial struct CharacterControllerSystem : ISystem
 
             // Apply input velocities
             {
-                if (shouldJump)
+                if (shouldJump && ccComponentData.IsPlayerControlled)
                 {
                     // Add jump speed to surface velocity and make character unsupported
                     ccInternalData.IsJumping = true;
